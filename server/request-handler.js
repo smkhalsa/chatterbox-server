@@ -14,10 +14,11 @@ this file and include it in basic-server.js so that it actually works.
 
 var urlModule = require('url');
 
-var storedMessages = [];
-
+var allMessages = [];
+var rooms = {};
 
 var requestHandler = function(request, response) {
+var res = allMessages;
   // Request and Response come from node's http module.
   //
   // They include information about both the incoming request, such as
@@ -34,9 +35,10 @@ var requestHandler = function(request, response) {
   // console.logs in your code.
   var statusCode = 404;
 
-  console.log("Serving request type " + request.method + " for url " + request.url);
-
-  if (request.method === 'POST' && request.url === '/classes/messages') {
+  var storeMessage = function(room) {
+    if (!rooms[room]) {
+      rooms[room] = [];
+    }
 
     var currentData = '';
 
@@ -46,22 +48,36 @@ var requestHandler = function(request, response) {
 
     //when the request is done sending data
     request.on('end', function() {
-      console.log(currentData);
-      storedMessages.push(JSON.parse(currentData));
+      allMessages.push(JSON.parse(currentData));
+      rooms[room].push(JSON.parse(currentData));
     });
+  };
 
+  console.log("Serving request type " + request.method + " for url " + request.url);
+
+  if (request.method === 'POST' && request.url === '/messages') {
     statusCode = 201;
-
-
+    storeMessage('global');
+    res = null;
   }
 
-  else if (request.method === 'GET' && request.url === '/classes/messages') {
+  else if (request.method === 'GET' && request.url === '/messages') {
     statusCode = 200;
   }
 
-  if (request.method === 'GET' && request.url.substring(0,15) === '/classes/rooms/') {
+  if (request.method === 'GET' && request.url.substring(0,7) === '/rooms/' && request.url.substring(7) !== '') {
+    res = rooms[request.url.substring(7)] || [];
     statusCode = 200;
 
+  } else if (request.method === 'POST' && request.url.substring(0,7) === '/rooms/') {
+    statusCode = 201;
+    storeMessage(request.url.substring(7));
+    res = null;
+  }
+
+  if (request.method === 'GET' && request.url.substring(0,6) === '/rooms' && request.url.substring(7) === '') {
+    statusCode = 200;
+    res = Object.keys(rooms);
   }
 
   // See the note below about CORS headers.
@@ -84,7 +100,7 @@ var requestHandler = function(request, response) {
   //
   // Calling .end "flushes" the response's internal buffer, forcing
   // node to actually send all the data over to the client.
-  response.end(JSON.stringify({"results" : storedMessages}));
+  response.end(JSON.stringify({"results" : res}));
 };
 
 // These headers will allow Cross-Origin Resource Sharing (CORS).
@@ -104,3 +120,19 @@ var defaultCorsHeaders = {
 };
 
 exports.handleRequest = requestHandler;
+
+
+
+//GET
+//messages : return all messages
+//rooms : return list of rooms
+//rooms/roomname : return list of messages from roomname
+//users : return list of users
+//users/username : return a list of messagers from username
+//
+//
+//POST
+//messages : add a post to global room
+//rooms/roomname : post to roomname
+//
+
