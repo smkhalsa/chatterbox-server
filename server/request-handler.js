@@ -57,11 +57,15 @@ var res = allMessages;
 
   if (request.method === 'POST' && request.url === '/messages') {
     statusCode = 201;
-    storeMessage('global');
+    storeMessage('all');
     res = null;
   }
 
   else if (request.method === 'GET' && request.url === '/messages') {
+    statusCode = 200;
+  }
+
+  else if (request.method === 'OPTIONS' && (request.url === '/messages' || request.url.substring(0,6) === '/rooms')) {
     statusCode = 200;
   }
 
